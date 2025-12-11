@@ -57,6 +57,7 @@ import * as homebrew from './homebrew';
 import * as html from './html';
 import * as jenkins from './jenkins';
 import * as jsonnetBundler from './jsonnet-bundler';
+import * as kas from './kas';
 import * as kotlinScript from './kotlin-script';
 import * as kubernetes from './kubernetes';
 import * as kustomize from './kustomize';
@@ -108,7 +109,6 @@ import * as unity3d from './unity3d';
 import * as velaci from './velaci';
 import * as vendir from './vendir';
 import * as woodpecker from './woodpecker';
-
 const api = new Map<string, ManagerApi>();
 export default api;
 
@@ -221,3 +221,4 @@ api.set('unity3d', unity3d);
 api.set('velaci', velaci);
 api.set('vendir', vendir);
 api.set('woodpecker', woodpecker);
+api.set('kas', kas);
