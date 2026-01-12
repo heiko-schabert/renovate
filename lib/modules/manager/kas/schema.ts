@@ -13,7 +13,7 @@ const KasDefaults = z.object({
 });
 */
 
-const KasRepo = z.object({
+export const KasRepo = z.object({
   name: z.string().optional(),
 
   url: z.string().optional(),

@@ -1,4 +1,5 @@
 import { GitRefsDatasource } from '../../datasource/git-refs';
+import { GitTagsDatasource } from '../../datasource/git-tags';
 //import { GitTagsDatasource } from '../../datasource/git-tags';
 //import { GithubReleasesDatasource } from '../../datasource/github-releases';
 //import { GithubTagsDatasource } from '../../datasource/github-tags';
@@ -22,5 +23,5 @@ export const supportedDatasources = [
   // GithubReleasesDatasource.id,
   // GitlabTagsDatasource.id,
   GitRefsDatasource.id,
-  //  GitTagsDatasource.id,
+  GitTagsDatasource.id,
 ];
