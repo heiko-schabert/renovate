@@ -6,8 +6,6 @@ import type {
 import { logger } from '../../../logger';
 import { GitRefsDatasource } from '../../datasource/git-refs';
 import { GitTagsDatasource } from '../../datasource/git-tags';
-//import { parseGitUrl } from '../../../util/git/url';
-//import { getSiblingFileName, readLocalFile } from '../../../util/fs';
 import { KasProject, KasRepo } from './schema';
 
 //import { getSiblingFileName } from '../../../util/fs';
@@ -41,14 +39,6 @@ function dependencyStrategy(
   } else {
     packageDependency.datasource = GitRefsDatasource.id;
     packageDependency.currentValue = branch;
-    //currentRawValue : repo.branch ? branch : undefined,
-    //gitRef: repo.branch ? branch : rev,
-    //digestOneAndOnly: repo.branch ? true : undefined,
-    //pinDigests: repo.branch ? true: undefined,
-
-    //autoReplaceStringTemplate: '{{{depName}}} {{{newValue}}}',
-    //autoReplaceStringTemplate:
-    //  '{{depName}}\ncommit: {{#if newDigest}}{{newDigest}}',
   }
 
   return packageDependency;
@@ -122,10 +112,11 @@ export function extractPackageFile(
           logger.info({ repo }, 'kas.extractPackageFile: No repo URL found');
           continue;
         }
+
         if (!repo?.commit && !repo?.tag) {
           logger.info(
             { repo },
-            'kas.extractPackageFile: No commit and tag found. Not sure what to keep track of.',
+            'kas.extractPackageFile: No commit and tag found. Not sure what to keep track of. Skipping.',
           );
           continue;
         }
