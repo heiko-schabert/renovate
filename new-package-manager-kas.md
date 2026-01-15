@@ -140,11 +140,11 @@ git commits, tags and branches.
 ### Will users want (or need to) set a custom host or custom registry for Renovate's lookup?
 
 - [ ] Yes, provide details.
-- [ ] No.
+- [x] No.
 
 Where can Renovate find the custom host/registry?
 
-- [ ] No custom host or registry is needed.
+- [x] No custom host or registry is needed.
 - [ ] In the package file(s), provide details.
 - [ ] In some other file inside the repository, provide details.
 - [ ] User needs to configure Renovate where to find the information, provide details.
@@ -205,11 +205,9 @@ Where can Renovate find the custom host/registry?
 Renovate can perform "lock file maintenance" by getting the package manager to generate a lockfile from scratch.
 Can the package manager generate a lockfile from scratch?
 
-- [x] Yes, explain which command Renovate should use to generate the lockfile.
-- [ ] No, the package manager does _not_ generate a lockfile from scratch.
+- [ ] Yes, explain which command Renovate should use to generate the lockfile.
+- [x] No, the package manager does _not_ generate a lockfile from scratch.
 - [ ] No, the package manager does not use lockfiles.
-
-`kas lock kas.yml`
 
 ## Other
 
