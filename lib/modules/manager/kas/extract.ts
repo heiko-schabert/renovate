@@ -16,7 +16,7 @@ import { exec } from '../../../util/exec';
 import { Document, YAMLMap } from 'yaml';
 import path from 'path';
 
-function getLockFilePath(filePath: string): string {
+export function getLockFilePath(filePath: string): string {
   const lockFilePath = filePath.replace(/\.(yml|yaml)$/i, '.lock.$1');
   if (lockFilePath === filePath && !isLockFilePath(filePath)) {
     logger.debug({ filePath }, 'not a supported kas file type (.yml, .yaml)');
@@ -24,7 +24,7 @@ function getLockFilePath(filePath: string): string {
   return lockFilePath;
 }
 
-function isLockFilePath(filePath: string): boolean {
+export function isLockFilePath(filePath: string): boolean {
   return /\.lock\.(yml|yaml)$/i.test(filePath);
 }
 

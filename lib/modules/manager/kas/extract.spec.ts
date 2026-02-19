@@ -1,14 +1,50 @@
-import { Fixtures } from '~test/fixtures';
-import { extractPackageFile } from '.';
-
-const kasProject = Fixtures.get('kas-head-tracking.yml');
+import { getLockFilePath, isLockFilePath } from './extract';
 
 describe('modules/manager/kas/extract', () => {
-  describe('extractPackageFile()', () => {
-    let filename: string;
+  describe('isLockFilePath()', () => {
+    it.each`
+      filePath                       | expected
+      ${'project.lock.yml'}          | ${true}
+      ${'project.lock.yaml'}         | ${true}
+      ${'project.override.lock.yml'} | ${true}
+      ${'path/to/project.lock.yml'}  | ${true}
+      ${'path/to/project.lock.yaml'} | ${true}
+      ${'project.lock.YML'}          | ${true}
+      ${'project.lock.YAML'}         | ${true}
+      ${'project.lock.Yml'}          | ${true}
+      ${'project.yml'}               | ${false}
+      ${'project.yaml'}              | ${false}
+      ${'path/to/project.yml'}       | ${false}
+      ${'path/to/project.yaml'}      | ${false}
+      ${'project.lock'}              | ${false}
+      ${''}                          | ${false}
+      ${'lock.yml.bak'}              | ${false}
+      ${'project.lock.json'}         | ${false}
+    `('returns $expected for "$filePath"', ({ filePath, expected }) => {
+      expect(isLockFilePath(filePath)).toBe(expected);
+    });
+  });
 
-    it('returns null for empty', async () => {
-      expect(await extractPackageFile('nothing here', '')).toBeNull();
+  describe('getLockFilePath()', () => {
+    it.each`
+      filePath                  | expected
+      ${'project.yml'}          | ${'project.lock.yml'}
+      ${'project.yaml'}         | ${'project.lock.yaml'}
+      ${'project.override.yml'} | ${'project.override.lock.yml'}
+      ${'path/to/project.yml'}  | ${'path/to/project.lock.yml'}
+      ${'path/to/project.yaml'} | ${'path/to/project.lock.yaml'}
+      ${'project.YML'}          | ${'project.lock.YML'}
+      ${'project.YAML'}         | ${'project.lock.YAML'}
+    `('converts "$filePath" to "$expected"', ({ filePath, expected }) => {
+      expect(getLockFilePath(filePath)).toBe(expected);
+    });
+
+    it('returns the input unchanged for unsupported extensions', () => {
+      expect(getLockFilePath('project.txt')).toBe('project.txt');
+    });
+
+    it('returns the input unchanged for files with no extension', () => {
+      expect(getLockFilePath('project')).toBe('project');
     });
   });
 });
