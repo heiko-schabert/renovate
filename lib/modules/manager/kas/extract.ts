@@ -31,20 +31,12 @@ export function isLockFilePath(filePath: string): boolean {
 async function extractPackageFile(
   content: string,
   packageFile: string,
+  kasDump: KasDump,
   _config?: ExtractConfig,
-  kasDump: KasDump | null = null,
 ): Promise<PackageFileContent | null> {
   logger.trace(`kas.extractPackageFile(${packageFile})`);
   logger.trace({ content });
   const isLockFile = isLockFilePath(packageFile);
-
-  if (!kasDump) {
-    logger.warn(
-      { packageFile },
-      'No kas dump data available, cannot extract dependencies',
-    );
-    return null;
-  }
 
   let kasFile: KasProject | KasLockFile;
   let rawYamlDocument: Document;
@@ -308,7 +300,7 @@ export async function extractAllPackageFiles(
         continue;
       }
       const packageFileContent: PackageFileContent | null =
-        await extractPackageFile(content, file, config, kasDump);
+        await extractPackageFile(content, file, kasDump, config);
       if (packageFileContent) {
         results.push({
           packageFile: file,
