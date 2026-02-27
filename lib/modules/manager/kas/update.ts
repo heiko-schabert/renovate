@@ -11,19 +11,26 @@ export async function updateDependency({
   const {
     depName,
     packageFile,
+    datasource,
     currentValue,
     newValue,
     currentDigest,
     newDigest,
-    replaceString,
   } = upgrade;
-  logger.trace({ packageFile }, 'kas.updateDependency');
-  let searchIndex: number;
-  searchIndex = fileContent.indexOf(replaceString!);
-  if (searchIndex === -1) {
+  logger.debug({ packageFile }, 'kas.updateDependency');
+  if (datasource == 'git-tags' && currentValue == newValue) {
     logger.debug(
+      { packageFile, depName, currentValue, newDigest },
+      'git tag version did not change. Skipping digest update.',
+    );
+    return fileContent;
+  }
+  const replaceString = upgrade.replaceString ?? currentDigest;
+  const searchIndex: number = fileContent.indexOf(replaceString!);
+  if (searchIndex === -1) {
+    logger.warn(
       { packageFile, depName, fileContent, replaceString },
-      'Cannot find replaceString in current file content. Was it already updated?',
+      'Cannot find replaceString in current file content.',
     );
     return fileContent;
   }
@@ -31,7 +38,7 @@ export async function updateDependency({
     let newString = replaceString!;
     if (currentValue && newValue && currentValue !== newValue) {
       if (!newString.includes(currentValue)) {
-        logger.debug(
+        logger.trace(
           { stringToReplace: newString, currentValue },
           'currentValue not found in string to replace',
         );
@@ -43,7 +50,7 @@ export async function updateDependency({
     }
     if (currentDigest && newDigest && currentDigest !== newDigest) {
       if (!newString.includes(currentDigest)) {
-        logger.debug(
+        logger.trace(
           { stringToReplace: newString, currentDigest },
           'currentDigest not found in string to replace',
         );
@@ -53,20 +60,23 @@ export async function updateDependency({
         newDigest,
       );
     }
-    logger.debug(
+    logger.trace(
       { packageFile, depName },
       `Starting search at index ${searchIndex}`,
     );
     let newContent = fileContent;
     newContent = replaceAt(newContent, searchIndex, replaceString!, newString);
+    if (newContent === fileContent) {
+      logger.warn(
+        { packageFile, depName },
+        'Replacement did not change file content',
+      );
+      return fileContent;
+    }
     await writeLocalFile(upgrade.packageFile!, newContent);
     return newContent;
   } catch (err) {
-    logger.debug({ packageFile, depName, err }, 'doAutoReplace error');
+    logger.warn({ packageFile, depName, err }, 'update Dependency error');
+    return fileContent;
   }
-  logger.debug(
-    { packageFile, depName },
-    'Did not perform any replacements in updateDependency',
-  );
-  return fileContent;
 }
