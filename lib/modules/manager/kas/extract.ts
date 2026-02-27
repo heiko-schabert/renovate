@@ -148,10 +148,11 @@ async function extractPackageFile(
     }
 
     let packageDependency: PackageDependency = {
-      currentDigest: commit,
+      depName: repo.name ?? repoName,
       packageName: git,
       versioning: repo.branch ? looseVersioning : undefined,
       replaceString: repoString,
+      currentDigest: commit,
     };
 
     if (tag) {
