@@ -12,6 +12,7 @@ describe('modules/manager/kas/extract', () => {
       ${'project.lock.YML'}          | ${true}
       ${'project.lock.YAML'}         | ${true}
       ${'project.lock.Yml'}          | ${true}
+      ${'project.lock.json'}         | ${true}
       ${'project.yml'}               | ${false}
       ${'project.yaml'}              | ${false}
       ${'path/to/project.yml'}       | ${false}
@@ -19,7 +20,8 @@ describe('modules/manager/kas/extract', () => {
       ${'project.lock'}              | ${false}
       ${''}                          | ${false}
       ${'lock.yml.bak'}              | ${false}
-      ${'project.lock.json'}         | ${false}
+      ${'project.lock.bak'}          | ${false}
+      ${'project.lock.yaml.bak'}     | ${false}
     `('returns $expected for "$filePath"', ({ filePath, expected }) => {
       expect(isLockFilePath(filePath)).toBe(expected);
     });
@@ -35,16 +37,10 @@ describe('modules/manager/kas/extract', () => {
       ${'path/to/project.yaml'} | ${'path/to/project.lock.yaml'}
       ${'project.YML'}          | ${'project.lock.YML'}
       ${'project.YAML'}         | ${'project.lock.YAML'}
+      ${'project.txt'}          | ${null}
+      ${'project'}              | ${null}
     `('converts "$filePath" to "$expected"', ({ filePath, expected }) => {
       expect(getLockFilePath(filePath)).toBe(expected);
-    });
-
-    it('returns the input unchanged for unsupported extensions', () => {
-      expect(getLockFilePath('project.txt')).toBe('project.txt');
-    });
-
-    it('returns the input unchanged for files with no extension', () => {
-      expect(getLockFilePath('project')).toBe('project');
     });
   });
 });
