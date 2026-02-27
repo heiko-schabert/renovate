@@ -52,14 +52,14 @@ export function isYamlFilePath(filePath: string): boolean {
   return /\.(yml|yaml)$/i.test(filePath);
 }
 
-function getProjectParser(
+export function getProjectParser(
   filePath: string,
 ): typeof KasProjectYaml | typeof KasProjectJson {
   const isYaml = isYamlFilePath(filePath);
   return isYaml ? KasProjectYaml : KasProjectJson;
 }
 
-function getLockParser(
+export function getLockParser(
   filePath: string,
 ): typeof KasLockFileYaml | typeof KasLockFileJson {
   const isYaml = isYamlFilePath(filePath);

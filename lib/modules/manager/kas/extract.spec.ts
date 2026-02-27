@@ -1,4 +1,16 @@
-import { getLockFilePath, isLockFilePath } from './extract';
+import {
+  getLockFilePath,
+  getLockParser,
+  getProjectParser,
+  isLockFilePath,
+  isYamlFilePath,
+} from './extract';
+import {
+  KasLockFileJson,
+  KasLockFileYaml,
+  KasProjectJson,
+  KasProjectYaml,
+} from './schema';
 
 describe('modules/manager/kas/extract', () => {
   describe('isLockFilePath()', () => {
@@ -41,6 +53,53 @@ describe('modules/manager/kas/extract', () => {
       ${'project'}              | ${null}
     `('converts "$filePath" to "$expected"', ({ filePath, expected }) => {
       expect(getLockFilePath(filePath)).toBe(expected);
+    });
+  });
+
+  describe('isYamlFilePath()', () => {
+    it.each`
+      filePath                  | expected
+      ${'project.yml'}          | ${true}
+      ${'project.yaml'}         | ${true}
+      ${'project.override.yml'} | ${true}
+      ${'path/to/project.yml'}  | ${true}
+      ${'path/to/project.yaml'} | ${true}
+      ${'project.YML'}          | ${true}
+      ${'project.YAML'}         | ${true}
+      ${'project.txt'}          | ${false}
+      ${'project'}              | ${false}
+    `('returns $expected for "$filePath"', ({ filePath, expected }) => {
+      expect(isYamlFilePath(filePath)).toBe(expected);
+    });
+  });
+
+  describe('getProjectParser()', () => {
+    it('returns yaml parser for .yml files', () => {
+      const parser = getProjectParser('project.yml');
+      expect(parser).toBe(KasProjectYaml);
+    });
+    it('returns yaml parser for .yaml files', () => {
+      const parser = getProjectParser('project.yaml');
+      expect(parser).toBe(KasProjectYaml);
+    });
+    it('returns json parser for .json files', () => {
+      const parser = getProjectParser('project.json');
+      expect(parser).toBe(KasProjectJson);
+    });
+  });
+
+  describe('getLockParser()', () => {
+    it('returns yaml parser for .yml files', () => {
+      const parser = getLockParser('project.lock.yml');
+      expect(parser).toBe(KasLockFileYaml);
+    });
+    it('returns yaml parser for .yaml files', () => {
+      const parser = getLockParser('project.lock.yaml');
+      expect(parser).toBe(KasLockFileYaml);
+    });
+    it('returns json parser for .json files', () => {
+      const parser = getLockParser('project.lock.json');
+      expect(parser).toBe(KasLockFileJson);
     });
   });
 });
