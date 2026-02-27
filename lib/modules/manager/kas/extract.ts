@@ -1,29 +1,29 @@
+import { findNodeAtLocation, getNodeValue, parseTree } from 'jsonc-parser';
+import type { Document } from 'yaml';
+import { YAMLMap } from 'yaml';
+import { logger } from '../../../logger';
+import { exec } from '../../../util/exec';
+import type { ExecOptions } from '../../../util/exec/types';
+import { readLocalFile } from '../../../util/fs';
+import { parseSingleYamlDocument } from '../../../util/yaml';
+import { GitRefsDatasource } from '../../datasource/git-refs';
+import { GitTagsDatasource } from '../../datasource/git-tags';
+import { id as looseVersioning } from '../../versioning/loose';
 import type {
   ExtractConfig,
   PackageDependency,
   PackageFile,
   PackageFileContent,
 } from '../types';
+import type { KasProject, KasRepo } from './schema';
 import {
   KasDump,
-  KasProject,
-  KasProjectYaml,
-  KasProjectJson,
-  KasLockFileYaml,
   KasLockFileJson,
-  KasRepo,
+  KasLockFileYaml,
+  KasProjectJson,
+  KasProjectYaml,
 } from './schema';
-import { logger } from '../../../logger';
-import { GitRefsDatasource } from '../../datasource/git-refs';
-import { GitTagsDatasource } from '../../datasource/git-tags';
-import { id as looseVersioning } from '../../versioning/loose';
-import { parseSingleYamlDocument } from '../../../util/yaml';
-import { readLocalFile } from '../../../util/fs';
-import { ExecOptions } from '../../../util/exec/types';
-import { exec } from '../../../util/exec';
-import { Document, YAMLMap } from 'yaml';
 import path from 'path';
-import { findNodeAtLocation, getNodeValue, parseTree } from 'jsonc-parser';
 
 export function getLockFilePath(filePath: string): string | null {
   if (isLockFilePath(filePath)) {
@@ -52,16 +52,12 @@ export function isYamlFilePath(filePath: string): boolean {
   return /\.(yml|yaml)$/i.test(filePath);
 }
 
-export function getProjectParser(
-  filePath: string,
-): typeof KasProjectYaml | typeof KasProjectJson {
+export function getProjectParser(filePath: string): typeof KasProjectYaml {
   const isYaml = isYamlFilePath(filePath);
   return isYaml ? KasProjectYaml : KasProjectJson;
 }
 
-export function getLockParser(
-  filePath: string,
-): typeof KasLockFileYaml | typeof KasLockFileJson {
+export function getLockParser(filePath: string): typeof KasLockFileYaml {
   const isYaml = isYamlFilePath(filePath);
   return isYaml ? KasLockFileYaml : KasLockFileJson;
 }
@@ -70,7 +66,7 @@ function extractRepoStrings(
   content: string,
   packageFile: string,
 ): Map<string, string> {
-  let map = new Map<string, string>();
+  const map = new Map<string, string>();
   if (isYamlFilePath(packageFile)) {
     let rawYamlDocument: Document;
     try {
@@ -93,7 +89,7 @@ function extractRepoStrings(
     for (const repoItem of reposNode.items) {
       const repoName = repoItem.key.toString();
       const repoNode = repoItem.value;
-      if (repoItem.key.range && repoNode && repoNode.range) {
+      if (repoItem.key.range && repoNode?.range) {
         const [keyStart] = repoItem.key.range;
         const [, valueEnd] = repoNode.range;
         map.set(repoName, content.substring(keyStart, valueEnd));
@@ -107,14 +103,14 @@ function extractRepoStrings(
         return map;
       }
       let reposNode = findNodeAtLocation(jsonRoot, ['repos']);
-      if (!reposNode || reposNode.type !== 'object') {
+      if (reposNode?.type !== 'object') {
         reposNode = findNodeAtLocation(jsonRoot, ['overrides', 'repos']);
       }
-      if (!reposNode || reposNode.type !== 'object') {
+      if (reposNode?.type !== 'object') {
         logger.debug({ packageFile }, 'no repos found in JSON file');
         return map;
       }
-      for (const property of reposNode.children || []) {
+      for (const property of reposNode.children ?? []) {
         if (property.type === 'property' && property.children?.length === 2) {
           const repoNameNode = property.children[0];
           const repoName = getNodeValue(repoNameNode);
@@ -131,12 +127,12 @@ function extractRepoStrings(
   return map;
 }
 
-async function extractPackageFile(
+function extractPackageFile(
   content: string,
   packageFile: string,
   kasDump: KasDump,
   _config?: ExtractConfig,
-): Promise<PackageFileContent | null> {
+): PackageFileContent | null {
   logger.trace(`kas.extractPackageFile ${packageFile}`);
   logger.trace({ content });
   const isLockFile = isLockFilePath(packageFile);
@@ -157,7 +153,7 @@ async function extractPackageFile(
     logger.debug({ packageFile }, 'no repos found in KAS file');
     return null;
   }
-  let repoStrings: Map<string, string> = extractRepoStrings(
+  const repoStrings: Map<string, string> = extractRepoStrings(
     content,
     packageFile,
   );
@@ -237,11 +233,11 @@ async function extractPackageFile(
       replaceString = content;
     }
     logger.trace({ replaceString, repoName }, 'string to replace for repo');
-    let packageDependency: PackageDependency = {
+    const packageDependency: PackageDependency = {
       depName: repo.name ?? repoName,
       packageName: git,
       versioning: repo.branch ? looseVersioning : undefined,
-      replaceString: replaceString,
+      replaceString,
       currentDigest: commit,
     };
 
@@ -260,7 +256,7 @@ async function extractPackageFile(
 }
 
 async function executeKasDump(file: string): Promise<KasDump | null> {
-  let cmd = `kas dump --format json ${file}`;
+  const cmd = `kas dump --format json ${file}`;
   const execOptions: ExecOptions = {
     toolConstraints: [
       {
@@ -335,10 +331,10 @@ export async function extractAllPackageFiles(
       seen.add(file);
       const content = await readLocalFile(file, 'utf8');
       if (!content) {
-        if (!isLockFile) {
-          logger.debug({ file }, `Empty or non existent KAS project file`);
-        } else {
+        if (isLockFile) {
           logger.trace({ file }, `non existant lock file`);
+        } else {
+          logger.debug({ file }, `Empty or non existent KAS project file`);
         }
         continue;
       }
@@ -348,7 +344,7 @@ export async function extractAllPackageFiles(
           const parser = getProjectParser(file);
           const kasFile: KasProject = parser.parse(content);
           const includes = kasFile.header.includes;
-          for (const include of includes || []) {
+          for (const include of includes ?? []) {
             let includedFilePath: string | null = null;
             if (typeof include === 'string') {
               includedFilePath = include;
@@ -391,8 +387,12 @@ export async function extractAllPackageFiles(
         logger.warn({ file, err }, `Parsing KAS file failed`);
         continue;
       }
-      const packageFileContent: PackageFileContent | null =
-        await extractPackageFile(content, file, kasDump, config);
+      const packageFileContent: PackageFileContent | null = extractPackageFile(
+        content,
+        file,
+        kasDump,
+        config,
+      );
       if (packageFileContent) {
         results.push({
           packageFile: file,

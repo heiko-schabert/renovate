@@ -1,8 +1,8 @@
 import { logger } from '../../../logger';
 import { writeLocalFile } from '../../../util/fs';
-import { regEx, escapeRegExp } from '../../../util/regex';
+import { escapeRegExp, regEx } from '../../../util/regex';
 import { replaceAt } from '../../../util/string';
-import { UpdateDependencyConfig } from '../types';
+import type { UpdateDependencyConfig } from '../types';
 
 export async function updateDependency({
   fileContent,
@@ -18,7 +18,7 @@ export async function updateDependency({
     newDigest,
   } = upgrade;
   logger.debug({ packageFile }, 'kas.updateDependency');
-  if (datasource == 'git-tags' && currentValue == newValue) {
+  if (datasource === 'git-tags' && currentValue === newValue) {
     logger.debug(
       { packageFile, depName, currentValue, newDigest },
       'git tag version did not change. Skipping digest update.',
