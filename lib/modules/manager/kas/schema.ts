@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Json } from '../../../util/schema-utils';
+import { Json, Yaml } from '../../../util/schema-utils';
 
 export const KasRepo = z.object({
   name: z.string().optional(),
@@ -18,7 +18,7 @@ export const KasInclude = z.union([
   }),
 ]);
 
-export const KasProject = z
+const KasProjectBase = z
   .object({
     header: z.object({
       version: z.number(),
@@ -28,7 +28,10 @@ export const KasProject = z
   })
   .catchall(z.unknown());
 
-export const KasLockFile = z.object({
+export const KasProjectJson = Json.pipe(KasProjectBase);
+export const KasProjectYaml = Yaml.pipe(KasProjectBase);
+
+const KasLockFileBase = z.object({
   overrides: z
     .object({
       repos: z
@@ -43,11 +46,14 @@ export const KasLockFile = z.object({
     .optional(),
 });
 
+export const KasLockFileJson = Json.pipe(KasLockFileBase);
+export const KasLockFileYaml = Yaml.pipe(KasLockFileBase);
+
 export const KasDump = Json.pipe(
-  z.object(KasProject.shape).merge(z.object(KasLockFile.shape)),
+  z.object(KasProjectBase.shape).merge(z.object(KasLockFileBase.shape)),
 );
 
 export type KasRepo = z.infer<typeof KasRepo>;
-export type KasProject = z.infer<typeof KasProject>;
-export type KasLockFile = z.infer<typeof KasLockFile>;
+export type KasProject = z.infer<typeof KasProjectBase>;
+export type KasLockFile = z.infer<typeof KasLockFileBase>;
 export type KasDump = z.infer<typeof KasDump>;

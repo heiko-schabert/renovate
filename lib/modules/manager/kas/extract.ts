@@ -4,28 +4,131 @@ import type {
   PackageFile,
   PackageFileContent,
 } from '../types';
-import { KasDump, KasLockFile, KasProject, KasRepo } from './schema';
+import {
+  KasDump,
+  KasProject,
+  KasProjectYaml,
+  KasProjectJson,
+  KasLockFileYaml,
+  KasLockFileJson,
+  KasRepo,
+} from './schema';
 import { logger } from '../../../logger';
 import { GitRefsDatasource } from '../../datasource/git-refs';
 import { GitTagsDatasource } from '../../datasource/git-tags';
 import { id as looseVersioning } from '../../versioning/loose';
-import { parseSingleYaml, parseSingleYamlDocument } from '../../../util/yaml';
+import { parseSingleYamlDocument } from '../../../util/yaml';
 import { readLocalFile } from '../../../util/fs';
 import { ExecOptions } from '../../../util/exec/types';
 import { exec } from '../../../util/exec';
 import { Document, YAMLMap } from 'yaml';
 import path from 'path';
+import { findNodeAtLocation, getNodeValue, parseTree } from 'jsonc-parser';
 
-export function getLockFilePath(filePath: string): string {
-  const lockFilePath = filePath.replace(/\.(yml|yaml)$/i, '.lock.$1');
-  if (lockFilePath === filePath && !isLockFilePath(filePath)) {
-    logger.debug({ filePath }, 'not a supported kas file type (.yml, .yaml)');
+export function getLockFilePath(filePath: string): string | null {
+  if (isLockFilePath(filePath)) {
+    logger.trace(
+      { filePath },
+      'file path is already a lock file path. Returning null',
+    );
+    return null;
+  }
+  const lockFilePath = filePath.replace(/\.(yml|yaml|json)$/i, '.lock.$1');
+  if (lockFilePath === filePath) {
+    logger.debug(
+      { filePath },
+      'unsupported kas file type (.yml, .yaml, .json)',
+    );
+    return null;
   }
   return lockFilePath;
 }
 
 export function isLockFilePath(filePath: string): boolean {
-  return /\.lock\.(yml|yaml)$/i.test(filePath);
+  return /\.lock\.(yml|yaml|json)$/i.test(filePath);
+}
+
+export function isYamlFilePath(filePath: string): boolean {
+  return /\.(yml|yaml)$/i.test(filePath);
+}
+
+function getProjectParser(
+  filePath: string,
+): typeof KasProjectYaml | typeof KasProjectJson {
+  const isYaml = isYamlFilePath(filePath);
+  return isYaml ? KasProjectYaml : KasProjectJson;
+}
+
+function getLockParser(
+  filePath: string,
+): typeof KasLockFileYaml | typeof KasLockFileJson {
+  const isYaml = isYamlFilePath(filePath);
+  return isYaml ? KasLockFileYaml : KasLockFileJson;
+}
+
+function extractRepoStrings(
+  content: string,
+  packageFile: string,
+): Map<string, string> {
+  let map = new Map<string, string>();
+  if (isYamlFilePath(packageFile)) {
+    let rawYamlDocument: Document;
+    try {
+      rawYamlDocument = parseSingleYamlDocument(content);
+    } catch (err) {
+      logger.debug({ packageFile, err }, `Parsing KAS YAML file failed`);
+      return map;
+    }
+    let reposNode = rawYamlDocument.get('repos');
+    if (!(reposNode instanceof YAMLMap)) {
+      const overridesNode = rawYamlDocument.get('overrides');
+      if (overridesNode instanceof YAMLMap) {
+        reposNode = overridesNode.get('repos');
+      }
+    }
+    if (!(reposNode instanceof YAMLMap)) {
+      logger.debug({ packageFile }, 'no repos found in KAS file');
+      return map;
+    }
+    for (const repoItem of reposNode.items) {
+      const repoName = repoItem.key.toString();
+      const repoNode = repoItem.value;
+      if (repoItem.key.range && repoNode && repoNode.range) {
+        const [keyStart] = repoItem.key.range;
+        const [, valueEnd] = repoNode.range;
+        map.set(repoName, content.substring(keyStart, valueEnd));
+      }
+    }
+  } else {
+    try {
+      const jsonRoot = parseTree(content);
+      if (!jsonRoot) {
+        logger.debug({ packageFile }, 'no content parsed from JSON file');
+        return map;
+      }
+      let reposNode = findNodeAtLocation(jsonRoot, ['repos']);
+      if (!reposNode || reposNode.type !== 'object') {
+        reposNode = findNodeAtLocation(jsonRoot, ['overrides', 'repos']);
+      }
+      if (!reposNode || reposNode.type !== 'object') {
+        logger.debug({ packageFile }, 'no repos found in JSON file');
+        return map;
+      }
+      for (const property of reposNode.children || []) {
+        if (property.type === 'property' && property.children?.length === 2) {
+          const repoNameNode = property.children[0];
+          const repoName = getNodeValue(repoNameNode);
+          const start = property.offset;
+          const end = property.offset + property.length;
+          map.set(repoName, content.substring(start, end));
+        }
+      }
+    } catch (err) {
+      logger.debug({ packageFile, err }, `Parsing KAS JSON file failed`);
+      return map;
+    }
+  }
+  return map;
 }
 
 async function extractPackageFile(
@@ -34,62 +137,40 @@ async function extractPackageFile(
   kasDump: KasDump,
   _config?: ExtractConfig,
 ): Promise<PackageFileContent | null> {
-  logger.trace(`kas.extractPackageFile(${packageFile})`);
+  logger.trace(`kas.extractPackageFile ${packageFile}`);
   logger.trace({ content });
   const isLockFile = isLockFilePath(packageFile);
-
-  let kasFile: KasProject | KasLockFile;
-  let rawYamlDocument: Document;
+  let repos: Record<string, KasRepo | null | undefined> | undefined;
   try {
-    rawYamlDocument = parseSingleYamlDocument(content, {
-      removeTemplates: true,
-    });
-    if (!isLockFile) kasFile = KasProject.parse(rawYamlDocument.toJS());
-    else kasFile = KasLockFile.parse(rawYamlDocument.toJS());
-    logger.trace({ kasFile }, 'parsed KAS file');
+    if (isLockFile) {
+      const lockFile = getLockParser(packageFile).parse(content);
+      repos = lockFile.overrides?.repos;
+    } else {
+      const projectFile = getProjectParser(packageFile).parse(content);
+      repos = projectFile.repos;
+    }
   } catch (err) {
-    logger.debug({ packageFile, err }, `Parsing KAS file failed`);
+    logger.warn({ packageFile, err }, `Parsing KAS file failed`);
     return null;
   }
-
-  const deps: PackageDependency[] = [];
-  let reposNode;
-  if (isLockFile) {
-    const overridesNode = rawYamlDocument.get('overrides');
-    if (overridesNode instanceof YAMLMap) {
-      reposNode = overridesNode.get('repos');
-    } else {
-      logger.debug(
-        { packageFile },
-        'no overrides section found in lock file, cannot extract dependencies',
-      );
-      return null;
-    }
-  } else {
-    reposNode = rawYamlDocument.get('repos');
-  }
-  if (!(reposNode instanceof YAMLMap)) {
+  if (!repos) {
     logger.debug({ packageFile }, 'no repos found in KAS file');
     return null;
   }
-  for (const repoItem of reposNode.items) {
-    const repoName = repoItem.key.toString();
-    const repoNode = repoItem.value;
-    let repo: KasRepo;
-    try {
-      repo = KasRepo.parse(repoNode.toJS(rawYamlDocument));
-    } catch (err) {
-      logger.debug(
-        { packageFile, repoName, err },
-        'Error parsing repo entry, skipping',
+  let repoStrings: Map<string, string> = extractRepoStrings(
+    content,
+    packageFile,
+  );
+  logger.trace({ repoStrings }, 'extracted repo strings from file content');
+  const deps: PackageDependency[] = [];
+  for (const repoName in repos) {
+    const repo = repos[repoName];
+    if (!repo) {
+      logger.trace(
+        { packageFile, repoName },
+        'repo entry is null or undefined, skipping',
       );
       continue;
-    }
-    logger.debug({ repoName, repo }, 'kas.extractPackageFile');
-    let repoString: string | undefined = undefined;
-    if (repoNode && repoNode.range) {
-      const [start, end] = repoNode.range;
-      repoString = content.substring(start, end);
     }
     const dumpRepo: KasRepo | null | undefined = kasDump.repos?.[repoName];
     if (!dumpRepo) {
@@ -147,11 +228,20 @@ async function extractPackageFile(
       continue;
     }
 
+    let replaceString = repoStrings.get(repoName);
+    if (!replaceString) {
+      logger.warn(
+        { packageFile, repoName },
+        'could not extract repo string from file, using entire file content',
+      );
+      replaceString = content;
+    }
+    logger.trace({ replaceString, repoName }, 'string to replace for repo');
     let packageDependency: PackageDependency = {
       depName: repo.name ?? repoName,
       packageName: git,
       versioning: repo.branch ? looseVersioning : undefined,
-      replaceString: repoString,
+      replaceString: replaceString,
       currentDigest: commit,
     };
 
@@ -213,7 +303,7 @@ export async function extractAllPackageFiles(
   const results: PackageFile[] = [];
   const seen = new Set<string>(packageFiles);
   for (const rootFile of packageFiles) {
-    logger.trace(
+    logger.debug(
       { rootFile },
       'kas.extractAllPackageFiles: processing root file',
     );
@@ -237,6 +327,9 @@ export async function extractAllPackageFiles(
 
     while (filesToExamine.length > 0) {
       const file = filesToExamine.pop()!;
+      if (!file) {
+        continue;
+      }
       const isLockFile = isLockFilePath(file);
       logger.trace({ file }, 'kas.extractAllPackageFiles: processing file');
       seen.add(file);
@@ -252,10 +345,8 @@ export async function extractAllPackageFiles(
 
       try {
         if (!isLockFile) {
-          const kasFile: KasProject = parseSingleYaml(content, {
-            customSchema: KasProject,
-            removeTemplates: true,
-          });
+          const parser = getProjectParser(file);
+          const kasFile: KasProject = parser.parse(content);
           const includes = kasFile.header.includes;
           for (const include of includes || []) {
             let includedFilePath: string | null = null;
