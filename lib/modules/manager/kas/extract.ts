@@ -23,7 +23,6 @@ import {
   KasProjectJson,
   KasProjectYaml,
 } from './schema';
-import path from 'path';
 
 export function getLockFilePath(filePath: string): string | null {
   if (isLockFilePath(filePath)) {
@@ -343,43 +342,28 @@ export async function extractAllPackageFiles(
         if (!isLockFile) {
           const parser = getProjectParser(file);
           const kasFile: KasProject = parser.parse(content);
-          const includes = kasFile.header.includes;
-          for (const include of includes ?? []) {
-            let includedFilePath: string | null = null;
-            if (typeof include === 'string') {
-              includedFilePath = include;
-              if (path.isAbsolute(includedFilePath)) {
-                logger.debug(
-                  { include },
-                  'can not process absolute include paths',
-                );
-                continue;
-              }
-            } else if (typeof include === 'object' && include.file) {
+          for (const include of kasFile.header.includes ?? []) {
+            if (typeof include === 'object' && include.file) {
               logger.debug(
                 { include },
                 'can not process include files from other repos',
               );
               continue;
-            } else {
+            } else if (typeof include !== 'string') {
               logger.debug({ include }, 'Unknown include format');
               continue;
             }
-            const normalizedPath = path.normalize(includedFilePath);
-            if (packageFiles.includes(normalizedPath)) {
+            if (packageFiles.includes(include)) {
               logger.warn(
-                { file: normalizedPath },
+                { file: include },
                 'Only the root entry kas file should be specified in matchFiles renovate config. Skipping include entry.',
               );
               continue;
             }
-            if (
-              !filesToExamine.includes(normalizedPath) &&
-              !seen.has(normalizedPath)
-            ) {
-              filesToExamine.push(normalizedPath);
-              filesToExamine.push(getLockFilePath(normalizedPath));
-              logger.trace({ file: normalizedPath }, 'Added file from include');
+            if (!filesToExamine.includes(include) && !seen.has(include)) {
+              filesToExamine.push(include);
+              filesToExamine.push(getLockFilePath(include));
+              logger.trace({ file: include }, 'Added file from include');
             }
           }
         }
