@@ -1,5 +1,5 @@
-import { executeKasDump } from './extract';
-import { mockExecAll } from '~test/exec-util';
+import { mockExecAll } from '~test/exec-util.ts';
+import { executeKasDump } from './extract.ts';
 
 describe('modules/manager/kas/execute-kas-dump', () => {
   it('returns parsed KasDump on valid JSON stdout', async () => {

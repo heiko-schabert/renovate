@@ -4,13 +4,13 @@ import {
   getProjectParser,
   isLockFilePath,
   isYamlFilePath,
-} from './extract';
+} from './extract.ts';
 import {
   KasLockFileJson,
   KasLockFileYaml,
   KasProjectJson,
   KasProjectYaml,
-} from './schema';
+} from './schema.ts';
 
 describe('modules/manager/kas/extract', () => {
   describe('isLockFilePath()', () => {

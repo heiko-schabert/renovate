@@ -1,8 +1,8 @@
-import { logger } from '../../../logger';
-import { writeLocalFile } from '../../../util/fs';
-import { escapeRegExp, regEx } from '../../../util/regex';
-import { replaceAt } from '../../../util/string';
-import type { UpdateDependencyConfig } from '../types';
+import { logger } from '../../../logger/index.ts';
+import { writeLocalFile } from '../../../util/fs/index.ts';
+import { escapeRegExp, regEx } from '../../../util/regex.ts';
+import { replaceAt } from '../../../util/string.ts';
+import type { UpdateDependencyConfig } from '../types.ts';
 
 export async function updateDependency({
   fileContent,

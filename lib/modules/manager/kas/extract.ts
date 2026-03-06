@@ -1,28 +1,28 @@
 import { findNodeAtLocation, getNodeValue, parseTree } from 'jsonc-parser';
 import type { Document } from 'yaml';
 import { YAMLMap } from 'yaml';
-import { logger } from '../../../logger';
-import { exec } from '../../../util/exec';
-import type { ExecOptions } from '../../../util/exec/types';
-import { readLocalFile } from '../../../util/fs';
-import { parseSingleYamlDocument } from '../../../util/yaml';
-import { GitRefsDatasource } from '../../datasource/git-refs';
-import { GitTagsDatasource } from '../../datasource/git-tags';
-import { id as looseVersioning } from '../../versioning/loose';
+import { logger } from '../../../logger/index.ts';
+import { exec } from '../../../util/exec/index.ts';
+import type { ExecOptions } from '../../../util/exec/types.ts';
+import { readLocalFile } from '../../../util/fs/index.ts';
+import { parseSingleYamlDocument } from '../../../util/yaml.ts';
+import { GitRefsDatasource } from '../../datasource/git-refs/index.ts';
+import { GitTagsDatasource } from '../../datasource/git-tags/index.ts';
+import { id as looseVersioning } from '../../versioning/loose/index.ts';
 import type {
   ExtractConfig,
   PackageDependency,
   PackageFile,
   PackageFileContent,
-} from '../types';
-import type { KasProject, KasRepo } from './schema';
+} from '../types.ts';
+import type { KasProject, KasRepo } from './schema.ts';
 import {
   KasDump,
   KasLockFileJson,
   KasLockFileYaml,
   KasProjectJson,
   KasProjectYaml,
-} from './schema';
+} from './schema.ts';
 
 export function getLockFilePath(filePath: string): string | null {
   if (isLockFilePath(filePath)) {

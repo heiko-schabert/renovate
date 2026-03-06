@@ -1,7 +1,8 @@
-import { GitRefsDatasource } from '../../datasource/git-refs';
-import { GitTagsDatasource } from '../../datasource/git-tags';
-export { extractAllPackageFiles } from './extract';
-export { updateDependency } from './update';
+import { GitRefsDatasource } from '../../datasource/git-refs/index.ts';
+import { GitTagsDatasource } from '../../datasource/git-tags/index.ts';
+
+export { extractAllPackageFiles } from './extract.ts';
+export { updateDependency } from './update.ts';
 
 export const displayName = 'KAS';
 export const supportsLockFileMaintenance = false;

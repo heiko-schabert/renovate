@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { Json, Yaml } from '../../../util/schema-utils';
+import { z } from 'zod/v3';
+import { Json, Yaml } from '../../../util/schema-utils/index.ts';
 
 export const KasRepo = z.object({
   name: z.string().optional(),

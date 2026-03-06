@@ -1,6 +1,6 @@
-import { _extractPackageFile } from './extract';
-import type { KasDump } from './schema';
-import { Fixtures } from '~test/fixtures';
+import { Fixtures } from '~test/fixtures.ts';
+import { _extractPackageFile } from './extract.ts';
+import type { KasDump } from './schema.ts';
 
 const kasHeadTracking = Fixtures.get('kas-head-tracking.yml');
 const kasBranchCommit = Fixtures.get('kas-branch-commit.yml');
