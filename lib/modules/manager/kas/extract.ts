@@ -126,7 +126,7 @@ function extractRepoStrings(
   return map;
 }
 
-function extractPackageFile(
+export function _extractPackageFile(
   content: string,
   packageFile: string,
   kasDump: KasDump,
@@ -254,7 +254,7 @@ function extractPackageFile(
   return deps.length > 0 ? { deps } : null;
 }
 
-async function executeKasDump(file: string): Promise<KasDump | null> {
+export async function executeKasDump(file: string): Promise<KasDump | null> {
   const cmd = `kas dump --format json ${file}`;
   const execOptions: ExecOptions = {
     toolConstraints: [
@@ -371,7 +371,7 @@ export async function extractAllPackageFiles(
         logger.warn({ file, err }, `Parsing KAS file failed`);
         continue;
       }
-      const packageFileContent: PackageFileContent | null = extractPackageFile(
+      const packageFileContent: PackageFileContent | null = _extractPackageFile(
         content,
         file,
         kasDump,

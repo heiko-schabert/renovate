@@ -1,13 +1,15 @@
-import { Fixtures } from '~test/fixtures';
-import { extractPackageFile } from './extract';
+import { _extractPackageFile } from './extract';
 import type { KasDump } from './schema';
+import { Fixtures } from '~test/fixtures';
 
 const kasHeadTracking = Fixtures.get('kas-head-tracking.yml');
 const kasBranchCommit = Fixtures.get('kas-branch-commit.yml');
 const kasTag = Fixtures.get('kas-tag.yml');
 const kasTagCommit = Fixtures.get('kas-tag-commit.yml');
 
-const commitSha = 'd63a1cbae6f737aa843d00d8812547fe7b87104a';
+const isarCommitSha = 'd63a1cbae6f737aa843d00d8812547fe7b87104a';
+const isarTag = 'v0.0.1';
+const isarBranch = 'next';
 const isarUrl = 'https://github.com/ilbers/isar.git';
 
 function makeDump(
@@ -21,57 +23,42 @@ function makeDump(
   } as KasDump;
 }
 
-describe('modules/manager/kas/extractPackageFile', () => {
-  it('returns null when kasDump is null', async () => {
-    const result = await extractPackageFile(
-      kasHeadTracking,
-      'kas.yml',
-      undefined,
-      null,
-    );
-    expect(result).toBeNull();
-  });
-
-  it('returns null for invalid YAML', async () => {
+describe('modules/manager/kas/extract-package-file', () => {
+  it('returns null for invalid YAML', () => {
     const dump = makeDump({});
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       '{{invalid yaml',
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('returns null when no repos section exists', async () => {
+  it('returns null when no repos section exists', () => {
     const dump = makeDump({});
     const content = 'header:\n  version: 1\n';
-    const result = await extractPackageFile(
-      content,
-      'kas.yml',
-      undefined,
-      dump,
-    );
+    const result = _extractPackageFile(content, 'kas.yml', dump, undefined);
     expect(result).toBeNull();
   });
 
-  it('extracts head-tracking dependency (commit only)', async () => {
+  it('extracts head-tracking dependency (commit only)', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
+        commit: isarCommitSha,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toMatchObject({
       deps: [
         {
-          currentDigest: commitSha,
+          currentDigest: isarCommitSha,
           currentValue: undefined,
           datasource: 'git-refs',
           packageName: isarUrl,
@@ -82,25 +69,25 @@ describe('modules/manager/kas/extractPackageFile', () => {
     expect(result!.deps).toHaveLength(1);
   });
 
-  it('extracts branch + commit dependency', async () => {
+  it('extracts branch + commit dependency', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
-        branch: 'next',
+        commit: isarCommitSha,
+        branch: isarTag,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasBranchCommit,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toMatchObject({
       deps: [
         {
-          currentDigest: commitSha,
-          currentValue: 'next',
+          currentDigest: isarCommitSha,
+          currentValue: isarTag,
           datasource: 'git-refs',
           packageName: isarUrl,
           versioning: 'loose',
@@ -110,19 +97,19 @@ describe('modules/manager/kas/extractPackageFile', () => {
     expect(result!.deps).toHaveLength(1);
   });
 
-  it('extracts tag-only dependency', async () => {
+  it('extracts tag-only dependency', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        tag: 'v0.0.1',
+        tag: isarTag,
       },
     });
-    const result = await extractPackageFile(kasTag, 'kas.yml', undefined, dump);
+    const result = _extractPackageFile(kasTag, 'kas.yml', dump, undefined);
     expect(result).toMatchObject({
       deps: [
         {
           currentDigest: undefined,
-          currentValue: 'v0.0.1',
+          currentValue: isarTag,
           datasource: 'git-tags',
           packageName: isarUrl,
         },
@@ -131,25 +118,25 @@ describe('modules/manager/kas/extractPackageFile', () => {
     expect(result!.deps).toHaveLength(1);
   });
 
-  it('extracts tag + commit dependency', async () => {
+  it('extracts tag + commit dependency', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
-        tag: 'v0.0.1',
+        commit: isarCommitSha,
+        tag: isarTag,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasTagCommit,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toMatchObject({
       deps: [
         {
-          currentDigest: commitSha,
-          currentValue: 'v0.0.1',
+          currentDigest: isarCommitSha,
+          currentValue: isarTag,
           datasource: 'git-tags',
           packageName: isarUrl,
         },
@@ -158,18 +145,18 @@ describe('modules/manager/kas/extractPackageFile', () => {
     expect(result!.deps).toHaveLength(1);
   });
 
-  it('skips repo not present in dump', async () => {
+  it('skips repo not present in dump', () => {
     const dump = makeDump({});
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('skips mercurial repos', async () => {
+  it('skips mercurial repos', () => {
     const content = [
       'header:',
       '  version: 1',
@@ -186,48 +173,43 @@ describe('modules/manager/kas/extractPackageFile', () => {
         commit: 'abc123',
       },
     });
-    const result = await extractPackageFile(
-      content,
-      'kas.yml',
-      undefined,
-      dump,
-    );
+    const result = _extractPackageFile(content, 'kas.yml', dump, undefined);
     expect(result).toBeNull();
   });
 
-  it('skips when URL in file does not match dump', async () => {
+  it('skips when URL in file does not match dump', () => {
     const dump = makeDump({
       isar: {
         url: 'https://example.com/different-repo.git',
-        commit: commitSha,
+        commit: isarCommitSha,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('skips when commit does not match dump', async () => {
+  it('skips when commit does not match dump', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
         commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('skips when no repo URL found for non-lock file', async () => {
+  it('skips when no repo URL found for non-lock file', () => {
     const content = [
       'header:',
       '  version: 1',
@@ -240,34 +222,29 @@ describe('modules/manager/kas/extractPackageFile', () => {
         commit: 'abc123',
       },
     });
-    const result = await extractPackageFile(
-      content,
-      'kas.yml',
-      undefined,
-      dump,
-    );
+    const result = _extractPackageFile(content, 'kas.yml', dump, undefined);
     expect(result).toBeNull();
   });
 
-  it('skips when both branch and tag are defined in dump', async () => {
+  it('skips when both branch and tag are defined in dump', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
+        commit: isarCommitSha,
         branch: 'main',
         tag: 'v1.0.0',
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('uses overrides commit from dump when available', async () => {
+  it('uses overrides commit from dump when available', () => {
     const overriddenCommit = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     const content = [
       'header:',
@@ -281,7 +258,7 @@ describe('modules/manager/kas/extractPackageFile', () => {
       {
         isar: {
           url: isarUrl,
-          commit: commitSha,
+          commit: isarCommitSha,
         },
       },
       {
@@ -290,12 +267,7 @@ describe('modules/manager/kas/extractPackageFile', () => {
         },
       },
     );
-    const result = await extractPackageFile(
-      content,
-      'kas.yml',
-      undefined,
-      dump,
-    );
+    const result = _extractPackageFile(content, 'kas.yml', dump, undefined);
     expect(result).toMatchObject({
       deps: [
         {
@@ -307,29 +279,29 @@ describe('modules/manager/kas/extractPackageFile', () => {
     });
   });
 
-  it('extracts dependencies from lock file overrides section', async () => {
+  it('extracts dependencies from lock file overrides section', () => {
     const lockContent = [
       'overrides:',
       '  repos:',
       '    isar:',
-      `      commit: ${commitSha}`,
+      `      commit: ${isarCommitSha}`,
     ].join('\n');
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
+        commit: isarCommitSha,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       lockContent,
       'project.lock.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toMatchObject({
       deps: [
         {
-          currentDigest: commitSha,
+          currentDigest: isarCommitSha,
           datasource: 'git-refs',
           packageName: isarUrl,
         },
@@ -337,43 +309,180 @@ describe('modules/manager/kas/extractPackageFile', () => {
     });
   });
 
-  it('returns null for lock file without overrides section', async () => {
+  it('returns null for lock file without overrides section', () => {
     const lockContent = [
       'some_key:',
       '  repos:',
       '    isar:',
-      `      commit: ${commitSha}`,
+      `      commit: ${isarCommitSha}`,
     ].join('\n');
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
+        commit: isarCommitSha,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       lockContent,
       'project.lock.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result).toBeNull();
   });
 
-  it('includes replaceString from YAML source range', async () => {
+  it('includes replaceString from YAML source range', () => {
     const dump = makeDump({
       isar: {
         url: isarUrl,
-        commit: commitSha,
+        commit: isarCommitSha,
       },
     });
-    const result = await extractPackageFile(
+    const result = _extractPackageFile(
       kasHeadTracking,
       'kas.yml',
-      undefined,
       dump,
+      undefined,
     );
     expect(result!.deps[0].replaceString).toBeDefined();
     expect(result!.deps[0].replaceString).toContain(isarUrl);
-    expect(result!.deps[0].replaceString).toContain(commitSha);
+    expect(result!.deps[0].replaceString).toContain(isarCommitSha);
+  });
+
+  it('returns null when branch and commit is overriden', () => {
+    const overriddenBranch = 'overridden-branch';
+    const overriddenCommit = 'overridden-commit';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: overriddenCommit,
+        branch: overriddenBranch,
+      },
+    });
+    const result = _extractPackageFile(
+      kasBranchCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when tag and commit is overriden', () => {
+    const overriddenTag = 'overridden-tag';
+    const overriddenCommit = 'overridden-commit';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: overriddenCommit,
+        tag: overriddenTag,
+      },
+    });
+    const result = _extractPackageFile(
+      kasTagCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns only the commit when branch is overridden', () => {
+    const overriddenBranch = 'overridden-branch';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: isarCommitSha,
+        branch: overriddenBranch,
+      },
+    });
+    const result = _extractPackageFile(
+      kasBranchCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toMatchObject({
+      deps: [
+        {
+          currentDigest: isarCommitSha,
+          currentValue: overriddenBranch,
+          datasource: 'git-refs',
+          packageName: isarUrl,
+        },
+      ],
+    });
+  });
+
+  it('returns null when commit is overridden and no tag present', () => {
+    const overriddenCommit = 'overridden-commit';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: overriddenCommit,
+        branch: isarBranch,
+      },
+    });
+    const result = _extractPackageFile(
+      kasBranchCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns only the commit when tag is overridden', () => {
+    const overriddenTag = 'overridden-tag';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: isarCommitSha,
+        tag: overriddenTag,
+      },
+    });
+    const result = _extractPackageFile(
+      kasTagCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toMatchObject({
+      deps: [
+        {
+          currentDigest: isarCommitSha,
+          currentValue: overriddenTag,
+          datasource: 'git-tags',
+          packageName: isarUrl,
+        },
+      ],
+    });
+  });
+
+  it('returns only the tag when commit is overridden', () => {
+    const overriddenCommit = 'overridden-commit';
+    const dump = makeDump({
+      isar: {
+        url: isarUrl,
+        commit: overriddenCommit,
+        tag: isarTag,
+      },
+    });
+    const result = _extractPackageFile(
+      kasTagCommit,
+      'kas.yml',
+      dump,
+      undefined,
+    );
+    expect(result).toMatchObject({
+      deps: [
+        {
+          currentDigest: undefined,
+          currentValue: isarTag,
+          datasource: 'git-tags',
+          packageName: isarUrl,
+        },
+      ],
+    });
   });
 });
