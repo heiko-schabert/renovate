@@ -1,4 +1,7 @@
+import { codeBlock } from 'common-tags';
+import { Fixtures } from '~test/fixtures.ts';
 import {
+  extractRepoStrings,
   getLockFilePath,
   getLockParser,
   getProjectParser,
@@ -100,6 +103,47 @@ describe('modules/manager/kas/extract', () => {
     it('returns json parser for .json files', () => {
       const parser = getLockParser('project.lock.json');
       expect(parser).toBe(KasLockFileJson);
+    });
+  });
+
+  describe('extractRepoStrings()', () => {
+    it('extracts repo strings from yaml kas file', () => {
+      const kasConfiguration = Fixtures.get('kas-branch-commit.yml');
+      const expected = new Map<string, string>([
+        ['isar', Fixtures.get('replace-string-isar.yml')],
+        ['meta-test', Fixtures.get('replace-string-meta-test.yml')],
+      ]);
+      expect(extractRepoStrings(kasConfiguration, 'project.yml')).toEqual(
+        expected,
+      );
+    });
+
+    it('extracts repo strings from json kas file', () => {
+      const kasConfiguration = Fixtures.get('kas-branch-commit.json');
+      const expected = new Map<string, string>([
+        ['isar', Fixtures.get('replace-string-isar.json.txt')],
+        ['meta-test', Fixtures.get('replace-string-meta-test.json.txt')],
+      ]);
+      expect(extractRepoStrings(kasConfiguration, 'project.json')).toEqual(
+        expected,
+      );
+    });
+
+    it('returns empty map if no repos found in yaml file', () => {
+      const kasFile = codeBlock`
+        header:
+          version: 1
+        repos: {}
+      `;
+      expect(extractRepoStrings(kasFile, 'project.yml')).toEqual(new Map());
+    });
+
+    it('returns empty map if no repos found in JSON file', () => {
+      const kasFile = JSON.stringify({
+        header: { version: 1 },
+        repos: {},
+      });
+      expect(extractRepoStrings(kasFile, 'project.json')).toEqual(new Map());
     });
   });
 });

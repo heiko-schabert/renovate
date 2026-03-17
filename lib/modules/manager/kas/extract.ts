@@ -61,7 +61,7 @@ export function getLockParser(filePath: string): typeof KasLockFileYaml {
   return isYaml ? KasLockFileYaml : KasLockFileJson;
 }
 
-function extractRepoStrings(
+export function extractRepoStrings(
   content: string,
   packageFile: string,
 ): Map<string, string> {
