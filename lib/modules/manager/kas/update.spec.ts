@@ -1,19 +1,20 @@
 import { vi } from 'vitest';
+
+vi.mock('../../../util/fs/index.ts', () => ({
+  writeLocalFile: vi.fn(),
+}));
+
 import { Fixtures } from '~test/fixtures.ts';
 import { updateDependency } from './update.ts';
 
-const kasFileYaml = Fixtures.get('kas-branch-commit.yml');
+const kasFileYamlBranch = Fixtures.get('kas-branch-commit.yml');
+const kasFileYamlTag = Fixtures.get('kas-tag-commit.yml');
 const replaceStringIsarYaml = Fixtures.get('replace-string-isar.yml');
-const kasFileJson = Fixtures.get('kas-branch-commit.json');
-const replaceStringIsarJson = Fixtures.get('replace-string-isar.json.txt');
+const replaceStringIsarYamlTag = Fixtures.get('replace-string-isar-tag.yml');
+const kasFileJsonBranch = Fixtures.get('kas-branch-commit.json');
+const kasFileJsonTag = Fixtures.get('kas-tag-commit.json');
 
 describe('modules/manager/kas/update', () => {
-  beforeAll(() => {
-    vi.mock('../../../util/fs/index.ts', () => ({
-      writeLocalFile: vi.fn(),
-    }));
-  });
-
   describe('updateDependency()', () => {
     it('replacing yaml file content with new digest', async () => {
       const upgrade = {
@@ -26,7 +27,8 @@ describe('modules/manager/kas/update', () => {
         replaceString: replaceStringIsarYaml,
       };
       const result = await updateDependency({
-        fileContent: kasFileYaml,
+        fileContent: kasFileYamlBranch,
+        packageFile: 'kas-branch-commit.yml',
         upgrade,
       });
       expect(result).toContain('next');
@@ -36,26 +38,25 @@ describe('modules/manager/kas/update', () => {
     it('replacing yaml file content with new digest and new value', async () => {
       const upgrade = {
         depName: 'isar',
-        packageFile: 'kas-branch-commit.yml',
         datasource: 'git-refs',
-        currentValue: 'next',
-        newValue: 'master',
+        currentValue: 'v0.0.1',
+        newValue: 'v1.0',
         currentDigest: 'd63a1cbae6f737aa843d00d8812547fe7b87104a',
-        newDigest: '34c3cda51b46a2a2a405e472a3c4b88c820c765e',
-        replaceString: replaceStringIsarYaml,
+        newDigest: '6504321e85b5fdc3bb5a83f042b77cb39cd11a6f',
+        replaceString: replaceStringIsarYamlTag,
       };
       const result = await updateDependency({
-        fileContent: kasFileYaml,
+        fileContent: kasFileYamlTag,
+        packageFile: 'kas-tag-commit.yml',
         upgrade,
       });
-      expect(result).toContain('master');
-      expect(result).toContain('34c3cda51b46a2a2a405e472a3c4b88c820c765e');
+      expect(result).toContain('v1.0');
+      expect(result).toContain('6504321e85b5fdc3bb5a83f042b77cb39cd11a6f');
     });
 
     it('returning original content if replace string is not found', async () => {
       const upgrade = {
         depName: 'isar',
-        packageFile: 'kas-branch-commit.yml',
         datasource: 'git-refs',
         currentValue: 'next',
         currentDigest: 'd63a1cbae6f737aa843d00d8812547fe7b87104a',
@@ -63,24 +64,24 @@ describe('modules/manager/kas/update', () => {
         replaceString: 'string-not-in-file',
       };
       const result = await updateDependency({
-        fileContent: kasFileYaml,
+        fileContent: kasFileYamlBranch,
+        packageFile: 'kas-branch-commit.yml',
         upgrade,
       });
-      expect(result).toBe(kasFileYaml);
+      expect(result).toBe(kasFileYamlBranch);
     });
 
     it('replacing json file content with new digest', async () => {
       const upgrade = {
         depName: 'isar',
-        packageFile: 'kas-branch-commit.json',
         datasource: 'git-refs',
         currentValue: 'next',
         currentDigest: 'd63a1cbae6f737aa843d00d8812547fe7b87104a',
         newDigest: '9b0816337c71c5e45998619bae351fc67fcadc45',
-        replaceString: replaceStringIsarJson,
       };
       const result = await updateDependency({
-        fileContent: kasFileJson,
+        fileContent: kasFileJsonBranch,
+        packageFile: 'kas-branch-commit.json',
         upgrade,
       });
       expect(result).toContain('next');
@@ -90,37 +91,19 @@ describe('modules/manager/kas/update', () => {
     it('replacing json file content with new digest and new value', async () => {
       const upgrade = {
         depName: 'isar',
-        packageFile: 'kas-branch-commit.json',
         datasource: 'git-refs',
-        currentValue: 'next',
-        newValue: 'master',
+        currentValue: 'v0.0.1',
+        newValue: 'v1.0',
         currentDigest: 'd63a1cbae6f737aa843d00d8812547fe7b87104a',
-        newDigest: '34c3cda51b46a2a2a405e472a3c4b88c820c765e',
-        replaceString: replaceStringIsarJson,
+        newDigest: '6504321e85b5fdc3bb5a83f042b77cb39cd11a6f',
       };
       const result = await updateDependency({
-        fileContent: kasFileJson,
+        fileContent: kasFileJsonTag,
+        packageFile: 'kas-tag-commit.json',
         upgrade,
       });
-      expect(result).toContain('master');
-      expect(result).toContain('34c3cda51b46a2a2a405e472a3c4b88c820c765e');
-    });
-
-    it('returning original content if replace string is not found', async () => {
-      const upgrade = {
-        depName: 'isar',
-        packageFile: 'kas-branch-commit.json',
-        datasource: 'git-refs',
-        currentValue: 'next',
-        currentDigest: 'd63a1cbae6f737aa843d00d8812547fe7b87104a',
-        newDigest: '9b0816337c71c5e45998619bae351fc67fcadc45',
-        replaceString: 'string-not-in-file',
-      };
-      const result = await updateDependency({
-        fileContent: kasFileJson,
-        upgrade,
-      });
-      expect(result).toBe(kasFileJson);
+      expect(result).toContain('v1.0');
+      expect(result).toContain('6504321e85b5fdc3bb5a83f042b77cb39cd11a6f');
     });
   });
 });

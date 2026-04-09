@@ -1,4 +1,3 @@
-import { findNodeAtLocation, getNodeValue, parseTree } from 'jsonc-parser';
 import type { Document } from 'yaml';
 import { YAMLMap } from 'yaml';
 import { logger } from '../../../logger/index.ts';
@@ -66,61 +65,34 @@ export function extractRepoStrings(
   packageFile: string,
 ): Map<string, string> {
   const map = new Map<string, string>();
-  if (isYamlFilePath(packageFile)) {
-    let rawYamlDocument: Document;
-    try {
-      rawYamlDocument = parseSingleYamlDocument(content);
-    } catch (err) {
-      logger.debug({ packageFile, err }, `Parsing KAS YAML file failed`);
-      return map;
+  if (!isYamlFilePath(packageFile)) {
+    return map;
+  }
+  let rawYamlDocument: Document;
+  try {
+    rawYamlDocument = parseSingleYamlDocument(content);
+  } catch (err) {
+    logger.debug({ packageFile, err }, `Parsing KAS YAML file failed`);
+    return map;
+  }
+  let reposNode = rawYamlDocument.get('repos');
+  if (!(reposNode instanceof YAMLMap)) {
+    const overridesNode = rawYamlDocument.get('overrides');
+    if (overridesNode instanceof YAMLMap) {
+      reposNode = overridesNode.get('repos');
     }
-    let reposNode = rawYamlDocument.get('repos');
-    if (!(reposNode instanceof YAMLMap)) {
-      const overridesNode = rawYamlDocument.get('overrides');
-      if (overridesNode instanceof YAMLMap) {
-        reposNode = overridesNode.get('repos');
-      }
-    }
-    if (!(reposNode instanceof YAMLMap)) {
-      logger.debug({ packageFile }, 'no repos found in KAS file');
-      return map;
-    }
-    for (const repoItem of reposNode.items) {
-      const repoName = repoItem.key.toString();
-      const repoNode = repoItem.value;
-      if (repoItem.key.range && repoNode?.range) {
-        const [keyStart] = repoItem.key.range;
-        const [, valueEnd] = repoNode.range;
-        map.set(repoName, content.substring(keyStart, valueEnd));
-      }
-    }
-  } else {
-    try {
-      const jsonRoot = parseTree(content);
-      if (!jsonRoot) {
-        logger.debug({ packageFile }, 'no content parsed from JSON file');
-        return map;
-      }
-      let reposNode = findNodeAtLocation(jsonRoot, ['repos']);
-      if (reposNode?.type !== 'object') {
-        reposNode = findNodeAtLocation(jsonRoot, ['overrides', 'repos']);
-      }
-      if (reposNode?.type !== 'object') {
-        logger.debug({ packageFile }, 'no repos found in JSON file');
-        return map;
-      }
-      for (const property of reposNode.children ?? []) {
-        if (property.type === 'property' && property.children?.length === 2) {
-          const repoNameNode = property.children[0];
-          const repoName = getNodeValue(repoNameNode);
-          const start = property.offset;
-          const end = property.offset + property.length;
-          map.set(repoName, content.substring(start, end));
-        }
-      }
-    } catch (err) {
-      logger.debug({ packageFile, err }, `Parsing KAS JSON file failed`);
-      return map;
+  }
+  if (!(reposNode instanceof YAMLMap)) {
+    logger.debug({ packageFile }, 'no repos found in KAS file');
+    return map;
+  }
+  for (const repoItem of reposNode.items) {
+    const repoName = repoItem.key.toString();
+    const repoNode = repoItem.value;
+    if (repoItem.key.range && repoNode?.range) {
+      const [keyStart] = repoItem.key.range;
+      const [, valueEnd] = repoNode.range;
+      map.set(repoName, content.substring(keyStart, valueEnd));
     }
   }
   return map;
@@ -135,6 +107,7 @@ export function _extractPackageFile(
   logger.trace(`kas.extractPackageFile ${packageFile}`);
   logger.trace({ content });
   const isLockFile = isLockFilePath(packageFile);
+  const isYamlFile = isYamlFilePath(packageFile);
   let repos: Record<string, KasRepo | null | undefined> | undefined;
   try {
     if (isLockFile) {
@@ -152,10 +125,9 @@ export function _extractPackageFile(
     logger.debug({ packageFile }, 'no repos found in KAS file');
     return null;
   }
-  const repoStrings: Map<string, string> = extractRepoStrings(
-    content,
-    packageFile,
-  );
+  const repoStrings: Map<string, string> = isYamlFile
+    ? extractRepoStrings(content, packageFile)
+    : new Map();
   logger.trace({ repoStrings }, 'extracted repo strings from file content');
   const deps: PackageDependency[] = [];
   for (const repoName in repos) {
@@ -224,7 +196,7 @@ export function _extractPackageFile(
     }
 
     let replaceString = repoStrings.get(repoName);
-    if (!replaceString) {
+    if (!replaceString && isYamlFile) {
       logger.warn(
         { packageFile, repoName },
         'could not extract repo string from file, using entire file content',
@@ -236,7 +208,7 @@ export function _extractPackageFile(
       depName: repo.name ?? repoName,
       packageName: git,
       versioning: repo.branch ? looseVersioning : undefined,
-      replaceString,
+      replaceString: isYamlFile ? replaceString : undefined,
       currentDigest: commit,
     };
 

@@ -108,25 +108,12 @@ describe('modules/manager/kas/extract', () => {
 
   describe('extractRepoStrings()', () => {
     it('extracts repo strings from yaml kas file', () => {
-      const kasConfiguration = Fixtures.get('kas-branch-commit.yml');
+      const kasFile = Fixtures.get('kas-branch-commit.yml');
       const expected = new Map<string, string>([
         ['isar', Fixtures.get('replace-string-isar.yml')],
         ['meta-test', Fixtures.get('replace-string-meta-test.yml')],
       ]);
-      expect(extractRepoStrings(kasConfiguration, 'project.yml')).toEqual(
-        expected,
-      );
-    });
-
-    it('extracts repo strings from json kas file', () => {
-      const kasConfiguration = Fixtures.get('kas-branch-commit.json');
-      const expected = new Map<string, string>([
-        ['isar', Fixtures.get('replace-string-isar.json.txt')],
-        ['meta-test', Fixtures.get('replace-string-meta-test.json.txt')],
-      ]);
-      expect(extractRepoStrings(kasConfiguration, 'project.json')).toEqual(
-        expected,
-      );
+      expect(extractRepoStrings(kasFile, 'project.yml')).toEqual(expected);
     });
 
     it('returns empty map if no repos found in yaml file', () => {
@@ -138,11 +125,8 @@ describe('modules/manager/kas/extract', () => {
       expect(extractRepoStrings(kasFile, 'project.yml')).toEqual(new Map());
     });
 
-    it('returns empty map if no repos found in JSON file', () => {
-      const kasFile = JSON.stringify({
-        header: { version: 1 },
-        repos: {},
-      });
+    it('returns empty map for JSON files', () => {
+      const kasFile = Fixtures.get('kas-branch-commit.json');
       expect(extractRepoStrings(kasFile, 'project.json')).toEqual(new Map());
     });
   });
